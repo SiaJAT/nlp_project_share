@@ -1,0 +1,8 @@
+installed following packages:
+
+$ sudo apt-get install python-dev libmysqlclient-dev
+$ pip install MySQL-python
+$ sudo apt-get install php5-cli
+$ sudo apt-get install mysql-5.6
+$ sudo apt-get install mysql-client-5.6
+$ sudo apt-get install mysql-devel-5.6
