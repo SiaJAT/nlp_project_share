@@ -3,6 +3,9 @@
 import MySQLdb
 import sys
 
+# Usage to create database: python sql.py create_db 
+# Usage to create one table: python sql.py build_table <"GLOVE" or "WORD2VEC"> <path to vectors>
+
 #Deletes database for rebuilding. 
 def clean():
     sql = "DROP DATABASE IF EXISTS NLP_VECTORS"
@@ -45,7 +48,7 @@ def create_db():
     db.commit()
 
 def build_table(table_name, file_name):
-    if not table_name == "GLOVE" or table_name == "WORD2VEC":
+    if not (table_name == "GLOVE" or table_name == "WORD2VEC"):
         print "Wrong table name used! Try GLOVE or WORD2VEC silly."
   
         sys.exit()
