@@ -47,22 +47,35 @@ def create_db():
 def build_table(table_name, file_name):
     if not table_name == "GLOVE" or table_name == "WORD2VEC":
         print "Wrong table name used! Try GLOVE or WORD2VEC silly."
-    
+  
+        sys.exit()
+
+    #Selects database for use. 
+    sql = "USE NLP_VECTORS"
+    cursor.execute(sql)
+
     #Adds each vector to table. 
-    for line in file_name:
-        word, vector = line.split()
+    word_file = open(file_name, 'r')
+
+    for line in word_file:
+        word, vector = line.split(' ', 1)
+
+        #Escapes apostrophe and backslash by doubling them. 
+        word = word.replace("'", "''").replace("\\", "\\\\")
 
         sql = """INSERT INTO %s (WORD, VECTOR) 
-                 VALUES('%s', '%s)""" % (word, vector)
+                 VALUES('%s', '%s')""" % (table_name, word, vector)
 
         cursor.execute(sql)
 
     #Orders table in alphabetical order by word. 
-    sql = """ALTER TABLE %s ORDER BY WORD"""
+    sql = """ALTER TABLE %s ORDER BY WORD""" % (table_name)
     cursor.execute(sql)
 
     #Commits changes. 
     db.commit()
+
+    word_file.close()
 
 if __name__ == "__main__":
     host = "localhost"
@@ -70,7 +83,7 @@ if __name__ == "__main__":
     passwd = "julian"
 
     #Variables for table building. 
-    max_word_length = 250
+    max_word_len = 250
 
     #Opens database connection. 
     db = MySQLdb.connect(host, user, passwd)
@@ -79,7 +92,7 @@ if __name__ == "__main__":
     cursor = db.cursor()
 
     #Ensures argument length correctness. 
-    if len(sys.argv < 2):
+    if len(sys.argv) < 2:
         print "Need at least one argument!"
 
     #Command to execute in db. 
@@ -92,7 +105,7 @@ if __name__ == "__main__":
         create_db()
     elif command == "build_table":
         #Ensures arguments are all there. 
-        if not len(sys.argv == 4):
+        if not len(sys.argv) == 4:
             print "Expecting 4 arguments!"
             print "Usage: $python sql.py build_table [table name] [word vector file name]"
         else:
