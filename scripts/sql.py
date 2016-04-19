@@ -102,6 +102,7 @@ def create_db():
     #Commits changes. 
     db.commit()
 
+#Builds either the GLOV or WORD2VEC tables in the db. 
 def build_table(table_name, file_name):
     if not (table_name == "GLOVE" or table_name == "WORD2VEC"):
         print "Wrong table name used! Try GLOVE or WORD2VEC silly."
