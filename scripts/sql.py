@@ -6,6 +6,62 @@ import sys
 # Usage to create database: python sql.py create_db 
 # Usage to create one table: python sql.py build_table <"GLOVE" or "WORD2VEC"> <path to vectors>
 
+class NLP_Database:
+    def __init__(self):
+        #Login info. 
+        self.host = "localhost"
+        self.user = "root"
+        self.passwd = "julian"
+
+        #Keeps track of table selection. 
+        self.table = None
+        self.num_rows = None
+        self.rows_fetched = 0
+
+        #Variables for table building. 
+        self.max_word_len = 250
+
+        #Opens database connection. 
+        self.db = MySQLdb.connect(host, user, passwd)
+
+        #Cursor object used to interact with MySQL
+        self.cursor = self.db.cursor()
+
+    def __del__(self):
+        #Disconnects from database. 
+        self.db.close()
+
+    #This method loads one of the tables and all of its entries. 
+    #Used before fetching entries. 
+    def pick_table(self, table):
+        if not (table == "GLOVE" or table == "WORD2VEC"):
+            print "Incorrect table requested, try GLOVE or WORD2VEC"
+            System.exit()
+    
+        #Pre-loads all entries and readies for fetching. 
+        sql = "SELECT * FROM %s" % (table)
+        self.num_rows = self.cursor.execute(sql)
+
+        #Denotes that table has been selected. 
+        self.table = table
+
+    #Fetches next row from currently selected table.
+    #Returns None if no next row available. 
+    def fetch_one(self):
+        if self.table == None:
+            print "No table selected! Did you forget to call pick_table()?" 
+            System.exit()
+       
+        #Returns None if no more rows to read. 
+        if self.rows_fetched > self.num_rows:
+            return None
+
+        #Increments num fetched and returns row. 
+        self.num_fetched += 1
+        
+        return self.cursor.fetchone()
+        
+
 #Deletes database for rebuilding. 
 def clean():
     sql = "DROP DATABASE IF EXISTS NLP_VECTORS"
@@ -14,7 +70,6 @@ def clean():
     
     #Commits changes. 
     db.commit()
-
 
 #Creates database. 
 def create_db():
@@ -81,19 +136,6 @@ def build_table(table_name, file_name):
     word_file.close()
 
 if __name__ == "__main__":
-    host = "localhost"
-    user = "root"
-    passwd = "julian"
-
-    #Variables for table building. 
-    max_word_len = 250
-
-    #Opens database connection. 
-    db = MySQLdb.connect(host, user, passwd)
-
-    #Cursor object used to interact with MySQL
-    cursor = db.cursor()
-
     #Ensures argument length correctness. 
     if len(sys.argv) < 2:
         print "Need at least one argument!"
