@@ -20,6 +20,9 @@ class InvertedIndex:
     '''
     def __init__(self):
         self.doc2word = {}
+        self.num_sent = 0
+        self.max_sent_len = 0
+        
         
 
     def insert(self, word, doc, sent, word_pos):
@@ -84,11 +87,11 @@ class InvertedIndex:
                 curr_file_string = curr_file.read().replace('\n', ' ').replace('\r', '')
                 curr_file_string = unicode(curr_file_string, errors='replace')
                 
-                # segment the sentence 
+                # segment the sentence collectin stats 
                 sent_segm = sent_tokenize(curr_file_string)
-                num_sentences = len(sent_segm)
-                max_sent_len = self.len_longest_sentence(curr_file_string)
-         
+                self.max_sent_len = self.len_longest_sentence(curr_file_string)
+                self.num_sent = len(sent_segm)
+                
                 # tokenize each sentence
                 sent_counter = 0
                 for sent in sent_segm:
@@ -118,8 +121,11 @@ class InvertedIndex:
     def serialize_inverted_index(self, save_name):
         pickle.dump(self.doc2word, open(save_name + ".p", 'wb'))
 
-
-
+    
+    def get_doc_data(self, doc_name):
+        word2sent = self.doc2word[doc_name]  
+        stats = (self.num_sent, self.max_sent_len)
+        return (word2sent, stats)
 
 def serialize_pretrained_vecs_data(train_path, vec_type):
     file_len = 0
