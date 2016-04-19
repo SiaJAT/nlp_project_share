@@ -59,4 +59,4 @@ class DocumentTensor:
                     self.tensor[sent, word_index, :] = self.db.get_wordvec(word) 
         
     def serialize_tensor(self):
-       pickle.dump(self.tensor, open(name + "_tensor.p",'wb' )) 
+       pickle.dump(self.tensor, open(self.name + "_tensor.p",'wb' )) 

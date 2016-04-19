@@ -20,10 +20,8 @@ class InvertedIndex:
     '''
     def __init__(self):
         self.doc2word = {}
-        self.num_sent = 0
-        self.max_sent_len = 0
-        
-        
+        self.doc2stats = {}
+                
 
     def insert(self, word, doc, sent, word_pos):
         # this document has been seen before
@@ -89,8 +87,7 @@ class InvertedIndex:
                 
                 # segment the sentence collectin stats 
                 sent_segm = sent_tokenize(curr_file_string)
-                self.max_sent_len = self.len_longest_sentence(curr_file_string)
-                self.num_sent = len(sent_segm)
+                self.doc2stats[doc_name] = (len(sent_segm),self.len_longest_sentence(curr_file_string))
                 
                 # tokenize each sentence
                 sent_counter = 0
@@ -103,7 +100,8 @@ class InvertedIndex:
                         tok_counter += 1    
                     
                     sent_counter += 1
-                 
+                
+                print "doc: " + doc_name + ", sentence count: " + str(sent_counter)
         # change back to the original working directory
         os.chdir(old_dir)    
     
@@ -124,7 +122,7 @@ class InvertedIndex:
     
     def get_doc_data(self, doc_name):
         word2sent = self.doc2word[doc_name]  
-        stats = (self.num_sent, self.max_sent_len)
+        stats = self.doc2stats[doc_name] 
         return (word2sent, stats)
 
 def serialize_pretrained_vecs_data(train_path, vec_type):
