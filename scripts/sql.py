@@ -2,12 +2,16 @@
 
 import MySQLdb
 import sys
+import numpy as np
 
 # Usage to create database: python sql.py create_db 
 # Usage to create one table: python sql.py build_table <"GLOVE" or "WORD2VEC"> <path to vectors>
 
 class NLP_Database:
     def __init__(self):
+        reload(sys)
+        sys.setdefaultencoding('utf8')
+        
         #Login info. 
         self.host = "localhost"
         self.user = "root"
@@ -25,10 +29,13 @@ class NLP_Database:
         self.max_word_len = 250
 
         #Opens database connection. 
-        self.db = MySQLdb.connect(host, user, passwd)
+        self.db = MySQLdb.connect(self.host, self.user, self.passwd)
 
         #Cursor object used to interact with MySQL
         self.cursor = self.db.cursor()
+
+        #Selects db. 
+        self.cursor.execute("USE NLP_VECTORS")
 
     def __del__(self):
         #Disconnects from database. 
@@ -60,16 +67,16 @@ class NLP_Database:
             return None
 
         #Increments num fetched and returns row. 
-        self.num_fetched += 1
+        self.rows_fetched += 1
         
         return self.cursor.fetchone()
         
-    def get_wordvec(word):
+    def get_wordvec(self, word):
         done = False
         word_list = None
 
         #Checks if word we're looking for was buffered already. 
-        if self.row_buffer[0] == word:
+        if self.row_buffer is not None and self.row_buffer[0] == word:
             word_list = self.row_buffer
 
             done = True
@@ -93,11 +100,11 @@ class NLP_Database:
                 done = True
 
                 #Creates numpy vector for word_list and returns it. 
-                vector = np.array([float(entry) for entry in row[1].split()]
+                vector = np.array([float(entry) for entry in row[1].split()])
 
                 #Case where vector is malformed. 
-                if not len(vector) == 300:
-                    print "Vector dimmensions for " + word " in db bad!"
+                if len(vector) != 300:
+                    print "Vector dimmensions for " + word + " in db bad!"
                     print word + " vector: " + row[1]
 
                     #Returns random gaussian assuming # of errors is small. 

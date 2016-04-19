@@ -119,7 +119,7 @@ class InvertedIndex:
 
     
     def serialize_inverted_index(self, save_name):
-        pickle.dump(self.doc2word, open(save_name + ".p", 'wb'))
+        pickle.dump(self, open(save_name + ".p", 'wb'))
 
     
     def get_doc_data(self, doc_name):
