@@ -19,6 +19,10 @@ class DocumentTensor:
 
         #Gets document inverted index dictionary as well as list of statistics for document. 
         word2sent, stats = inverted_index.get_doc_data(self.name)
+        
+        self.num_sent = stats[0]
+        self.max_sent_len = stats[1]
+
 
         #Gets dimmensions for tensor and initializes it. 
         #TODO Get dimmensions from stats (also implement stats)
