@@ -18,6 +18,9 @@ class NLP_Database:
         self.num_rows = None
         self.rows_fetched = 0
 
+        #Buffers previously fetched word for searches. 
+        self.row_buffer = None
+
         #Variables for table building. 
         self.max_word_len = 250
 
@@ -61,6 +64,47 @@ class NLP_Database:
         
         return self.cursor.fetchone()
         
+    def get_wordvec(word):
+        done = False
+        word_list = None
+
+        #Checks if word we're looking for was buffered already. 
+        if self.row_buffer[0] == word:
+            word_list = self.row_buffer
+
+            done = True
+
+        while not done:
+            row = self.fetch_one()
+            
+            #Word not in database. 
+            if row == None or row[0] > word: 
+                #Buffer for next query. 
+                self.row_buffer = row
+
+                #Safety
+                done = True
+
+                #Create random gaussian vector.
+                # TODO Change 300 if vector dimmensionality changes. 
+                return np.random.normal(0, 0.1, 300)
+            
+            if row[0] == word:
+                done = True
+
+                #Creates numpy vector for word_list and returns it. 
+                vector = np.array([float(entry) for entry in row[1].split()]
+
+                #Case where vector is malformed. 
+                if not len(vector) == 300:
+                    print "Vector dimmensions for " + word " in db bad!"
+                    print word + " vector: " + row[1]
+
+                    #Returns random gaussian assuming # of errors is small. 
+                    return np.random.normal(0, 0.1, 300)
+
+                return vector
+                
 
 #Deletes database for rebuilding. 
 def clean():
