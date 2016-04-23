@@ -159,7 +159,7 @@ def train_tensor(doc_tensor_path):
     # create author vector (ASSUME that num author determined: get_author_labels())
     author_index = ord(file_name.split('n')[1][0]) - 65
     label_vector = np.zeros((1,len(author_set)))
-    label_vector[author_index] = 1.0
+    label_vector[0,author_index] = 1.0
     
     doc_tensor = center_sentence_tensor(doc_tensor_path)
     num_sent, max_sent_len, word_dim = doc_tensor.shape
