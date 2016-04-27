@@ -5,6 +5,7 @@ import os
 import pickle
 import numpy.matlib
 import numpy as np
+from sklearn import preprocessing
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers import convolutional, Merge, advanced_activations
@@ -24,8 +25,8 @@ class LossHistory(Callback):
 
     def on_batch_end(self, batch, logs={}):
         self.losses.append(logs.get('loss'))
-
-
+W2V_test_subset = '/mnt0/siajat/cs388/nlp_project_share/scripts/pan_test_WORD2VEC_subset'
+W2V_subset = '/mnt0/siajat/cs388/nlp_project_share/scripts/pan_train_WORD2VEC_subset'
 W2V_train = '/mnt0/siajat/cs388/nlp_project_share/scripts/pan_train_WORD2VEC'
 W2V_test = '/mnt0/siajat/cs388/nlp_project_share/scripts/pan_test_WORD2VEC'
 pan_original_train = '/mnt0/siajat/cs388/nlp/data/pan12-authorship-attribution-training-corpus-2012-03-28'
@@ -45,13 +46,15 @@ def center_sentence_tensor(tensor_file):
     curr_doc_tensor = pickle.load(open(tensor_file, 'rb'))
     num_sent, max_sent_len, word_dim = curr_doc_tensor.shape
     
-    """
-    print "num sent: " + str(num_sent) + "\n"
-    print "max sent len: " + str(max_sent_len), word_dim
-    print "word dim"
+    #print tensor_file
+    #print "num sent: " + str(num_sent)
+    #print "max sent len: " + str(max_sent_len)
+    #print "word dim: " + str(word_dim)
+    #print "global max sent: " + str(longest_sentence_corpus)
 
-    """
-    centered_tensor = np.zeros((num_sent, longest_sentence_corpus, word_dim))
+    # initialize a random tensor 
+    centered_tensor = np.random.normal(0, 0.1, (num_sent, longest_sentence_corpus, word_dim))
+    #print centered_tensor.shape
 
     for sent_ind in xrange(num_sent - 1, -1, -1):
         # find the len of this sentence
@@ -59,18 +62,35 @@ def center_sentence_tensor(tensor_file):
         while word_ind >= 0 and sum(curr_doc_tensor[sent_ind, word_ind, :]) == 0:
             word_ind -= 1
         
-            # bias towards having no padding instead of having some...
-            pad_amount = (longest_sentence_corpus - word_ind)/2
+        # bias towards having no padding instead of having some...
+        pad_amount = (longest_sentence_corpus - word_ind)/2
+        
+        #print "pad: " + str(pad_amount)
+        #print "curr_doc_tensor shape: " + str(curr_doc_tensor.shape)
 
-        start_write = pad_amount + 1
+        start_write = pad_amount
         end_write = start_write + word_ind + 1
         start_read = 0
         end_read = word_ind + 1
 
         centered_tensor[sent_ind, start_write:end_write,:] = curr_doc_tensor[sent_ind, start_read:end_read, :]
-    
+
+         
+
+    centered_tensor = l2normalize(centered_tensor)
     return centered_tensor
 
+def l2normalize(curr_tensor):
+    num_sent, sent_len, word_dim = curr_tensor.shape
+    for sent_ind in xrange(0, num_sent):
+        curr = curr_tensor[sent_ind, :, :]
+        curr = curr.flatten()
+        curr = np.reshape(curr, (1, len(curr)))
+        curr = preprocessing.normalize(curr)
+        curr = np.reshape(curr, (sent_len, word_dim))
+        curr_tensor[sent_ind, :, :] = curr
+
+    return curr_tensor
 
 def get_longest_corpus_sentence(original_train, original_test): 
     train_files = [x for x in sorted(os.listdir(original_train)) if x != "12Esample01.txt"
@@ -89,7 +109,8 @@ def get_longest_corpus_sentence(original_train, original_test):
 
         for sent in sent_segm:
             longest = max(len(word_tokenize(sent)), longest)
-    
+        read_file.close()
+
     for curr_test in test_files:
         #print curr_test
         read_file = open(original_test + '/' + curr_test, 'r')
@@ -99,6 +120,7 @@ def get_longest_corpus_sentence(original_train, original_test):
 
         for sent in sent_segm:
             longest = max(len(word_tokenize(sent)), longest)
+        read_file.close()
 
     global longest_sentence_corpus
     longest_sentence_corpus = longest
@@ -123,7 +145,10 @@ def build_rhodes():
     merged_model = Sequential()
     merged_model.add(Merge([auth_model_3gram, auth_model_4gram, auth_model_5gram], mode='concat', concat_axis=2))
     merged_model.add(Flatten())
+    merged_model.add(Dense(200))
+    merged_model.add(Dense(200, activation='relu'))
     merged_model.add(Dropout(0.2))
+    merged_model.add(Dense(200))
     merged_model.add(Dense(len(author_set), activation='softmax'))
     
     merged_model.summary()
@@ -137,20 +162,20 @@ def get_author_labels(train_dir, test_dir):
     test_set = set()
 
     for file_name in os.listdir(train_dir):
-        print file_name.split('train')
+        #print file_name.split('train')
         train_set.add(file_name.split('train')[1][0])
 
     # get the PAN test labels
     read_pan_test_labels(pan_test_labels_path)
     for test_file, test_author in pan_test_labels.iteritems():
-        print test_file + ", " + test_author
+        #print test_file + ", " + test_author
         test_set.add(test_author)
     
 
     assert len(test_set - train_set) >= 0
     global author_set
     author_set = train_set
-    print str(author_set)
+    #print str(author_set)
 
 def train_tensor(doc_tensor_path):
     # 1 hot vector encoding for categorical cross entropy loss (multinomial logistic regression)
@@ -163,16 +188,20 @@ def train_tensor(doc_tensor_path):
     
     doc_tensor = center_sentence_tensor(doc_tensor_path)
     num_sent, max_sent_len, word_dim = doc_tensor.shape
-   
+    label_mat = numpy.matlib.repmat(label_vector, num_sent, 1) 
+    
     history = LossHistory()
     global merged_model
- 
-    for curr_sent_ind in xrange(0, 1):
+    
+    print "training using: " + file_name
+    '''
+    for curr_sent_ind in xrange(0, num_sent):
         reshape_tensor = np.zeros((1, max_sent_len, word_dim))
         reshape_tensor[0, :, :] = doc_tensor[curr_sent_ind,:,:] 
         
-        history = merged_model.fit([reshape_tensor, reshape_tensor, reshape_tensor], label_vector, verbose=1)     
-
+        history = merged_model.train_on_batch([reshape_tensor, reshape_tensor, reshape_tensor], label_vector)     
+    '''
+    history = merged_model.train_on_batch([doc_tensor, doc_tensor, doc_tensor], label_mat)
 
 def batch_train(train_dir):
     train_pickles = os.listdir(train_dir)
@@ -180,12 +209,12 @@ def batch_train(train_dir):
         train_tensor(train_dir + '/' + f)
 
 
-def test_tensor(doc_tensor_path, corpus_id):
+def test_tensor(doc_tensor_path, corpus_id, passed_model):
     file_name = doc_tensor_path.split('/')[-1]
     
     file_name_no_suffix = file_name.split('_')[0]
     
-    print "no suffix: " + file_name_no_suffix
+    #print "no suffix: " + file_name_no_suffix
     # error: test file has no label
     if corpus_id is "PAN" and file_name_no_suffix not in pan_test_labels:
         print "file not found"
@@ -205,17 +234,24 @@ def test_tensor(doc_tensor_path, corpus_id):
 
     # create a label vector for each sentence and store in a matrix
     label_mat = numpy.matlib.repmat(label_vector, num_sent, 1)
-   
+    
+    #merged_model = model_from_json(open('naive_run.json').read())
+    #merged_model.load_weights('naive_run.h5')
+    # evaluate
+    #print type(merged_model)
+    
+    #score = passed_model.evaluate([doc_tensor, doc_tensor, doc_tensor], label_mat)
+    #print file_name_no_suffix + "," + str(score[0]) + "," + str(score[1])
+    
+    classes = passed_model.predict_classes([doc_tensor, doc_tensor, doc_tensor])
+    proba = passed_model.predict_proba([doc_tensor, doc_tensor, doc_tensor])
 
-    # evaluate 
-    score = merged_model.evaluate([doc_tensor, doc_tensor, doc_tensor], label_mat, verbose=0)
-    print file_name_no_suffix + "," + str(score[0]) + "," + str(score[1])
+    print file_name_no_suffix + ", " + str(classes) + ", " + str(proba)
 
-
-def batch_test(test_dir, corpus_id):
+def batch_test(test_dir, corpus_id, merged_model):
     test_pickles = os.listdir(test_dir)
     for f in test_pickles:
-        test_tensor(test_dir + '/' + f)
+        test_tensor(test_dir + '/' + f, corpus_id, merged_model)
 
 def read_pan_test_labels(test_labels_path):
     global pan_test_labels
@@ -230,7 +266,7 @@ def read_pan_test_labels(test_labels_path):
             pan_test_labels[file_name] = author
 
 
-def save_model():
+def save_model_disk():
     global merged_model
     merged_model.save_weights('naive_run.h5')
     json_string = merged_model.to_json()
@@ -242,21 +278,43 @@ def make_clean():
     if os.path.isfile('naive_run.json'):
         os.remove('naive_run.json')
 
+def load_and_test(test_dir_path, corpus_id, json_file, h5_file):
+    global merged_model
+    merged_model = Sequential()
+    merged_model = model_from_json(open(json_file).read())
+    merged_model.load_weights(h5_file)
+    ada = Adagrad(lr=1e-04, epsilon=1e-06)
+    merged_model.compile(loss='categorical_crossentropy', optimizer=ada, metrics=['accuracy'])
+    batch_test(W2V_test, 'PAN', merged_model)
+
+def load_and_test_and_iterative(test_dir_path, corpus_id, json_file, h5_file):
+    for var in [0.01, 0.001, 0.0001, 0.00001, 0.000001, 0.0000001]:
+        global merged_model
+        print "var: " + str(var)
+        merged_model = Sequential()
+        merged_model = model_from_json(open(json_file).read())
+        merged_model.load_weights(h5_file)
+        ada = Adagrad(lr=var, epsilon=1e-06)
+        merged_model.compile(loss='categorical_crossentropy', optimizer=ada, metrics=['accuracy'])
+        batch_test(W2V_test, 'PAN', merged_model)  
+    
 
 if __name__ == "__main__":
+    '''         
     # preliminaries (get all possible authors and longest sentence)
     make_clean()
     get_author_labels(W2V_train, W2V_test)
-    get_longest_corpus_sentence(pan_original_train, pan_original_test)
-    read_pan_test_labels(pan_test_labels_path)
+    get_longest_corpus_sentence(pan_original_train, pan_original_test) 
     
     # build the net and test 
     build_rhodes()
-    batch_train(W2V_train)
-    train_tensor(sample_train)
-    save_model()
+    batch_train(W2V_subset)
+    #train_tensor(sample_train)
+    save_model_disk()
     #test_tensor(sample_test, 'PAN')
-    batch_test(W2V_test)
+    #batch_test(W2V_test, 'PAN')
+    #load_and_test(W2V_test, 'PAN', '/mnt0/siajat/cs388/nlp_project_share/scripts/naive_run.json', '/mnt0/siajat/cs388/nlp_project_share/scripts/naive_run.h5')
+    '''
     '''
     dict = read_pan_test_labels(pan_test_labels_path)
     for k,v in dict.iteritems():
@@ -266,3 +324,9 @@ if __name__ == "__main__":
     get_longest_corpus_sentence(pan_original_train, pan_original_test)
     test_tensor(sample_test, 'PAN')
     '''
+    
+        
+    get_author_labels(W2V_train, W2V_test)
+    get_longest_corpus_sentence(pan_original_train, pan_original_test) 
+    load_and_test_and_iterative(W2V_test_subset, 'PAN', '/mnt0/siajat/cs388/nlp_project_share/scripts/naive_run.json', '/mnt0/siajat/cs388/nlp_project_share/scripts/naive_run.h5')
+   
