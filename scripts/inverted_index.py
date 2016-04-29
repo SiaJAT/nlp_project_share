@@ -88,10 +88,39 @@ class InvertedIndex:
                 # segment the sentence collectin stats 
                 sent_segm = sent_tokenize(curr_file_string)
                 self.doc2stats[doc_name] = (len(sent_segm),self.len_longest_sentence(curr_file_string))
-                
+               
+		small_sent_list = []
+
+		for sent in sent_segm:	
+			#Change values to something else if necessary. 
+			sent_size = 6
+			allowed_remainder = 4
+
+			if len(sent) > sent_size:
+				#Split
+				num_bins = len(sent) / sent_size
+				remainder = len(sent) % sent_size
+
+				base = 0
+				bound = 0
+
+				for i in range(num_bins):
+					base = i * sent_size
+					bound = (i + 1) * sent_size
+
+					small_sent_list.append(sent[base:bound])
+
+				if remainder >= allowed_remainder:
+					small_sent_list.append(sent[bound:])
+				
+
+			else:
+				#If fits, then ships. 
+				small_sent_list.append(sent)
+ 
                 # tokenize each sentence
                 sent_counter = 0
-                for sent in sent_segm:
+                for sent in small_sent_list:
                     tok_segm = word_tokenize(sent)
                     
                     tok_counter = 0 
